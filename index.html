@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>สิงโตน้อย ทับกฤช</title>
+    <style>
+        body { margin: 0; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Tahoma', sans-serif; overflow: hidden; }
+        #game-container { position: relative; width: 1024px; height: 768px; border: 5px solid #d4af37; box-shadow: 0 0 50px rgba(0,0,0,0.8); background: #000; }
+        canvas { display: block; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 10; }
+        .ui-stats { position: absolute; top: 20px; left: 20px; font-size: 22px; text-shadow: 2px 2px 4px #000; pointer-events: none; z-index: 5; }
+        input { padding: 15px; font-size: 20px; border-radius: 10px; border: none; width: 300px; text-align: center; margin-bottom: 20px; }
+        button { padding: 15px 40px; font-size: 22px; background: #e74c3c; color: white; border: none; cursor: pointer; border-radius: 10px; transition: 0.3s; }
+        button:hover { background: #ff5e4d; transform: scale(1.1); }
+        .congrats-text { color: #f1c40f; font-size: 60px; margin-bottom: 10px; text-shadow: 0 0 20px #f1c40f; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="1024" height="768"></canvas>
+
+    <div id="start-screen" class="overlay">
+        <h1 style="color:#d4af37; font-size: 45px;">🧧 สิงโตน้อยทับกฤช 🧧</h1>
+        <p>กรุณากรอกชื่อผู้เล่น เพื่อเริ่มความสนุก</p>
+        <input type="text" id="playerName" placeholder="ชื่อของคุณ" maxlength="15">
+        <button onclick="startGame()">เริ่มเล่นเกม</button>
+    </div>
+
+    <div id="ingame-ui" class="ui-stats" style="display:none;">
+        <div>ผู้เล่น: <span id="ui-name" style="color:#f1c40f;">-</span></div>
+        <div>ด่าน: <span id="ui-lvl">1</span> / 5</div>
+        <div>คะแนน: <span id="ui-sc">0</span></div>
+        <div style="color: #ff4d4d;">พลาดได้อีก: <span id="ui-miss">5</span> ครั้ง</div>
+    </div>
+
+    <div id="final-screen" class="overlay" style="display:none;">
+        <div class="congrats-text" id="final-title">🎉 ยินดีด้วย 🎉</div>
+        <h2 id="report-name">คุณ : </h2>
+        <h3 id="report-score" style="color: #2ecc71;">คะแนนรวม : </h3>
+        <button onclick="location.reload()">เล่นใหม่อีกครั้ง</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Asset Loading
+    const imgLion = new Image(); imgLion.src = 'lion.png';
+    const imgOrange = new Image(); imgOrange.src = 'orange.png';
+    const bgs = [];
+    for(let i=1; i<=5; i++) {
+        let b = new Image(); b.src = `bg${i}.jpg`;
+        bgs.push(b);
+    }
+
+    // --- 🔊 ระบบเสียง ---
+    const sndCollect = new Audio('collect.mp3');
+    const sndMiss = new Audio('miss.mp3');
+    const sndLevelUp = new Audio('levelup.mp3');
+    
+    // 🎵 เพลงประกอบ (Background Music)
+    const bgm = new Audio('bgm.mp3');
+    bgm.loop = true;      // ให้เล่นวนลูป
+    bgm.volume = 0.4;    // ปรับความดังเพลงประกอบ (0.0 ถึง 1.0)
+
+    let playerName = "";
+    let score = 0, level = 1, missesLeft = 5;
+    let isGameOver = false, isWin = false;
+    let oranges = [];
+    let particles = [];
+    let frameCount = 0;
+    const keys = {};
+
+    window.addEventListener("keydown", e => keys[e.code] = true);
+    window.addEventListener("keyup", e => keys[e.code] = false);
+
+    const lion = { 
+        x: 437, y: 580, w: 150, h: 150, 
+        speed: 12, dy: 0, jumpPower: -18, gravity: 0.8, isGrounded: false 
+    };
+
+    function startGame() {
+        const input = document.getElementById("playerName").value;
+        if(!input) { alert("กรุณากรอกชื่อก่อนเล่นครับ"); return; }
+        playerName = input;
+        
+        // เริ่มเล่นเพลงประกอบทันทีที่กดปุ่ม
+        bgm.play().catch(e => console.log("BGM blocked by browser"));
+        
+        document.getElementById("start-screen").style.display = "none";
+        document.getElementById("ingame-ui").style.display = "block";
+        document.getElementById("ui-name").innerText = playerName;
+        gameLoop();
+    }
+
+    function playSnd(audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => {});
+    }
+
+    // พลุเฉลิมฉลอง
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x; this.y = y; this.color = color;
+            this.velX = (Math.random() - 0.5) * 12;
+            this.velY = (Math.random() - 0.5) * 12;
+            this.alpha = 1;
+        }
+        draw() {
+            ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath();
+            ctx.arc(this.x, this.y, 3, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
+            ctx.restore();
+        }
+        update() { this.x += this.velX; this.y += this.velY; this.velY += 0.1; this.alpha -= 0.01; }
+    }
+
+    function createFirework(x, y) {
+        const colors = ['#ff0000', '#ffd700', '#ffffff', '#00ff00', '#00ffff'];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        for(let i=0; i<50; i++) particles.push(new Particle(x, y, color));
+    }
+
+    function gameLoop() {
+        if (isGameOver && !isWin) {
+            bgm.pause(); // หยุดเพลงเมื่อ Game Over
+            return;
+        }
+
+        if(bgs[level-1].complete) ctx.drawImage(bgs[level-1], 0, 0, 1024, 768);
+        else { ctx.fillStyle = "#111"; ctx.fillRect(0,0,1024,768); }
+
+        if(!isWin) {
+            if (keys["ArrowLeft"] && lion.x > 0) lion.x -= lion.speed;
+            if (keys["ArrowRight"] && lion.x + lion.w < 1024) lion.x += lion.speed;
+            if (keys["Space"] && lion.isGrounded) {
+                lion.dy = lion.jumpPower;
+                lion.isGrounded = false;
+            }
+            
+            lion.dy += lion.gravity;
+            lion.y += lion.dy;
+
+            const groundY = 768 - lion.h - 40;
+            if (lion.y >= groundY) {
+                lion.y = groundY;
+                lion.dy = 0;
+                lion.isGrounded = true;
+            }
+
+            frameCount++;
+            if (frameCount % Math.max(20, (80 - (level*10))) === 0) {
+                oranges.push({ x: Math.random() * 960, y: -60, speed: 4 + (level*1.2) });
+            }
+
+            for (let i = oranges.length - 1; i >= 0; i--) {
+                let o = oranges[i];
+                o.y += o.speed;
+                if (imgOrange.complete) ctx.drawImage(imgOrange, o.x, o.y, 60, 60);
+                
+                if (o.x < lion.x + lion.w && o.x + 60 > lion.x && o.y < lion.y + lion.h && o.y + 60 > lion.y) {
+                    score += 10;
+                    playSnd(sndCollect);
+                    oranges.splice(i, 1);
+                    
+                    if (score > 0 && score % 200 === 0) {
+                        if(level < 5) { level++; missesLeft = 5; playSnd(sndLevelUp); }
+                        else { isWin = true; showFinalScreen(); }
+                    }
+                } else if (o.y > 768) {
+                    oranges.splice(i, 1);
+                    missesLeft--;
+                    playSnd(sndMiss);
+                    if (missesLeft <= 0) {
+                        isGameOver = true;
+                        showFinalScreen();
+                        document.getElementById("final-title").innerText = "💥 จบเกม! 💥";
+                    }
+                }
+            }
+            if (imgLion.complete) ctx.drawImage(imgLion, lion.x, lion.y, lion.w, lion.h);
+        } else {
+            // ฉากจบยังคงเล่นเพลงประกอบต่อไปพร้อมเสียงพลุ
+            if(Math.random() < 0.05) createFirework(Math.random() * 1024, Math.random() * 400);
+        }
+
+        for(let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update(); particles[i].draw();
+            if(particles[i].alpha <= 0) particles.splice(i, 1);
+        }
+
+        document.getElementById("ui-lvl").innerText = level;
+        document.getElementById("ui-sc").innerText = score;
+        document.getElementById("ui-miss").innerText = missesLeft;
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function showFinalScreen() {
+        document.getElementById("final-screen").style.display = "flex";
+        document.getElementById("report-name").innerText = "คุณ : " + playerName;
+        document.getElementById("report-score").innerText = "คะแนนรวม : " + score;
+    }
+</script>
+
+</body>
+</html>
