@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>สิงโตน้อย ทับกฤช </title>
+    <title>สิงโตน้อย ทับกฤช - 9 Levels Full Edition</title>
     <style>
         body { margin: 0; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: 'Tahoma', sans-serif; overflow: hidden; touch-action: none; }
         #game-container { position: relative; width: 1024px; height: 768px; border: 5px solid #d4af37; background: #000; overflow: hidden; }
@@ -12,19 +12,19 @@
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 20; }
         .ui-stats { position: absolute; top: 20px; left: 20px; font-size: 22px; text-shadow: 2px 2px 4px #000; pointer-events: none; z-index: 5; }
         
-        /* ปรับปรุงปุ่มมือถือให้โปร่งใสและเล็กลง */
+        /* ปุ่มมือถือ โปร่งใส 15% และย้ายไปมุมเพื่อไม่บังจอ */
         .mobile-controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; z-index: 15; pointer-events: none; }
         .btn { 
-            width: 90px; height: 90px; 
-            background: rgba(255, 255, 255, 0.15); /* โปร่งใสมากขึ้น */
-            border: 2px solid rgba(255, 255, 255, 0.3); 
+            width: 85px; height: 85px; 
+            background: rgba(255, 255, 255, 0.15); 
+            border: 2px solid rgba(255, 255, 255, 0.2); 
             border-radius: 50%; 
             display: flex; justify-content: center; align-items: center; 
-            font-size: 35px; color: rgba(255, 255, 255, 0.5); 
+            font-size: 32px; color: rgba(255, 255, 255, 0.4); 
             user-select: none; pointer-events: auto; 
             -webkit-tap-highlight-color: transparent; 
         }
-        .btn:active { background: rgba(255, 255, 255, 0.4); color: white; transform: scale(0.9); }
+        .btn:active { background: rgba(255, 255, 255, 0.3); color: white; transform: scale(0.9); }
         
         input { padding: 15px; font-size: 20px; border-radius: 10px; border: none; width: 300px; text-align: center; margin-bottom: 20px; }
         button { padding: 15px 40px; font-size: 22px; background: #e74c3c; color: white; border: none; cursor: pointer; border-radius: 10px; }
@@ -38,7 +38,7 @@
 
     <div id="start-screen" class="overlay">
         <h1 style="color:#d4af37; font-size: 45px;">🧧 สิงโตน้อยทับกฤช 🧧</h1>
-        <p>ตะลุย 9 ด่านมงคล</p>
+        <p>ตะลุย 9 ด่านมงคล (PC: ลูกศร+Space | มือถือ: ปุ่มบนจอ)</p>
         <input type="text" id="playerName" placeholder="ชื่อของคุณ" maxlength="15">
         <button onclick="startGame()">เริ่มเล่นเกม</button>
     </div>
@@ -59,7 +59,7 @@
     </div>
 
     <div id="final-screen" class="overlay" style="display:none;">
-        <div class="congrats-text" id="final-title">🎉 จบเกม 🎉</div>
+        <div class="congrats-text" id="final-title">🎉 จบการแสดง 🎉</div>
         <h2 id="report-name">คุณ : </h2>
         <h3 id="report-score" style="color: #2ecc71;">คะแนนรวม : </h3>
         <button onclick="location.reload()">เล่นใหม่อีกครั้ง</button>
@@ -70,11 +70,10 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Assets
+    // Assets - ตรวจสอบชื่อไฟล์ให้ตรงกับ GitHub
     const imgLion = new Image(); imgLion.src = 'lion.png'; 
     const imgOrange = new Image(); imgOrange.src = 'orange.png';
     const bgs = [];
-    // โหลด 9 ด่าน (bg1.JPG ถึง bg9.JPG)
     for(let i=1; i<=9; i++) {
         let b = new Image(); b.src = `bg${i}.jpg`; 
         bgs.push(b);
@@ -91,7 +90,7 @@
     let frameCount = 0;
     const keys = { ArrowLeft: false, ArrowRight: false, Space: false };
 
-    // ควบคุมระบบ Hybrid
+    // --- ระบบควบคุม Hybrid ---
     window.addEventListener("keydown", e => { 
         if(e.code === "Space") keys.Space = true; 
         else if(e.code === "ArrowLeft") keys.ArrowLeft = true;
@@ -112,7 +111,21 @@
     setupTouch("btnRight", "ArrowRight");
     setupTouch("btnJump", "Space");
 
-    const lion = { x: 437, y: 580, w: 150, h: 150, speed: 13, dy: 0, jumpPower: -19, gravity: 0.8, isGrounded: false };
+    // --- ตั้งค่าตัวละครสิงโต ---
+    const lion = { 
+        x: 437, 
+        y: 580, // พิกัดแนวตั้งที่ลอยจริง
+        baseW: 150, 
+        baseH: 150, 
+        w: 150, 
+        h: 150, 
+        speed: 13, 
+        dy: 0, 
+        jumpPower: -22, // แรงโดดสะใจ
+        gravity: 0.9, 
+        isGrounded: false,
+        stretch: 1.0 
+    };
 
     function startGame() {
         playerName = document.getElementById("playerName").value || "นักสู้ทับกฤช";
@@ -127,20 +140,42 @@
     function gameLoop() {
         if (isGameOver) return;
 
-        // วาดฉากหลังตามด่านปัจจุบัน
+        // วาดฉากหลัง
         if(bgs[level-1].complete) ctx.drawImage(bgs[level-1], 0, 0, 1024, 768);
         else { ctx.fillStyle = "#111"; ctx.fillRect(0, 0, 1024, 768); }
 
-        // การเคลื่อนที่
+        // --- ระบบฟิสิกส์และการยืดหด ---
         if (keys.ArrowLeft && lion.x > 0) lion.x -= lion.speed;
-        if (keys.ArrowRight && lion.x + lion.w < 1024) lion.x += lion.speed;
-        if (keys.Space && lion.isGrounded) { lion.dy = lion.jumpPower; lion.isGrounded = false; }
+        if (keys.ArrowRight && lion.x + lion.baseW < 1024) lion.x += lion.speed;
         
-        lion.dy += lion.gravity; lion.y += lion.dy;
-        const groundY = 768 - lion.h - 40;
-        if (lion.y >= groundY) { lion.y = groundY; lion.dy = 0; lion.isGrounded = true; }
+        // กระโดด
+        if (keys.Space && lion.isGrounded) { 
+            lion.dy = lion.jumpPower; 
+            lion.isGrounded = false; 
+            lion.stretch = 1.4; // ยืดตัวขณะดีดขึ้น
+        }
+        
+        lion.dy += lion.gravity; 
+        lion.y += lion.dy;
+        
+        const floorY = 768 - lion.baseH - 40; // พิกัดพื้นดิน
+        if (lion.y >= floorY) { 
+            if (!lion.isGrounded) {
+                lion.stretch = 0.6; // หดตัว (Squash) เมื่อถึงพื้น
+            }
+            lion.y = floorY; 
+            lion.dy = 0; 
+            lion.isGrounded = true; 
+        }
 
-        // ปล่อยส้ม (ด่านยิ่งสูง สยิ่งหล่นเร็ว)
+        // คืนรูป Smooth
+        lion.stretch += (1.0 - lion.stretch) * 0.15;
+
+        // คำนวณขนาดภาพตามการยืดหด
+        lion.w = lion.baseW / lion.stretch;
+        lion.h = lion.baseH * lion.stretch;
+
+        // --- ระบบส้มมงคล ---
         frameCount++;
         let spawnRate = Math.max(15, 60 - (level * 5));
         if (frameCount % spawnRate === 0) {
@@ -152,18 +187,17 @@
             if (imgOrange.complete) ctx.drawImage(imgOrange, o.x, o.y, 60, 60);
             else { ctx.fillStyle = "orange"; ctx.beginPath(); ctx.arc(o.x+30, o.y+30, 25, 0, Math.PI*2); ctx.fill(); }
             
-            // เก็บส้ม
-            if (o.x < lion.x + lion.w && o.x + 60 > lion.x && o.y < lion.y + lion.h && o.y + 60 > lion.y) {
+            // เช็คชน (ใช้ขนาด base ของสิงโตเพื่อความแม่นยำ)
+            if (o.x < lion.x + lion.baseW && o.x + 60 > lion.x && o.y < lion.y + lion.baseH && o.y + 60 > lion.y) {
                 score += 10; sndCollect.currentTime=0; sndCollect.play().catch(e=>{});
                 oranges.splice(i, 1);
                 
-                // ระบบเลื่อนด่าน (ด่าน 1-8 จะเปลี่ยนทุก 200 คะแนน)
+                // เลื่อนด่าน 1-8
                 if (level < 9 && score > 0 && score % 200 === 0) {
                     level++;
-                    missesLeft = 5; // รีเซ็ตโอกาสพลาดในแต่ละด่าน
+                    missesLeft = 5;
                     sndLevelUp.play().catch(e=>{});
                 }
-                // ถ้าเป็นด่าน 9 คะแนนจะเพิ่มไปเรื่อยๆ ไม่จบเกมจนกว่าจะพลาดครบ
             } else if (o.y > 768) {
                 oranges.splice(i, 1);
                 missesLeft--; sndMiss.play().catch(e=>{});
@@ -175,8 +209,18 @@
             }
         }
 
-        if(imgLion.complete) ctx.drawImage(imgLion, lion.x, lion.y, lion.w, lion.h);
+        // --- วาดสิงโต (ใช้จุดอ้างอิงจากฐานเท้า) ---
+        if(imgLion.complete) {
+            const centerX = lion.x + (lion.baseW / 2);
+            const footY = lion.y + lion.baseH; // จุดที่เท้าสัมผัสพื้นหรือลอยอยู่
+            
+            const drawX = centerX - (lion.w / 2);
+            const drawY = footY - lion.h; // วาดขึ้นจากฐานเท้า
+            
+            ctx.drawImage(imgLion, drawX, drawY, lion.w, lion.h);
+        }
 
+        // อัปเดต UI
         document.getElementById("ui-lvl").innerText = (level === 9) ? "9 (INFINITE)" : level;
         document.getElementById("ui-sc").innerText = score;
         document.getElementById("ui-miss").innerText = missesLeft;
@@ -191,5 +235,4 @@
     }
 </script>
 </body>
-
 </html>
